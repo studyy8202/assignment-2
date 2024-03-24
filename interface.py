@@ -9,12 +9,6 @@ import streamlit as st
 
 
 
-new_directory = '/Users/simonnguyen/Downloads/ml'
-os.chdir(new_directory)
-
-# Print new working directory
-print("New working directory:", os.getcwd())
-
 npo_df = pd.read_csv('npo_user.csv')
 
 npo_df['user_id'] = npo_df['user_id'].astype(int)
@@ -34,7 +28,7 @@ if user_id_str:
     except ValueError:
         st.error("Please enter a valid integer for user ID.")
 
-selected_option = st.sidebar.selectbox("Select an option", ["Recently Watched", "For you", "You Might Like","Watchlist"])
+selected_option = st.sidebar.selectbox("Select an option", ["Recently Watched", "For you", "You Might Like"])
 
 # Display only 10 movies initially-
 num_movies_to_display = min(len(npo_df), 10)
@@ -689,7 +683,7 @@ if user_id is not None:
                      st.text(f"Title: {episode_row['Title']}")
                      st.write(f"Description: {episode_row['Description']}", height=100)
 
-  elif selected_option == "You Might Like":
+  else:
     st.subheader("Shows that you might find interesting")  
     df_recommendations = recommend_videos(npo_df[npo_df['user_id'] == user_id]['series_id'].tolist())
     df_recommendations = get_accountable_recommendations(npo_df, user_id, df_recommendations)
@@ -714,8 +708,7 @@ if user_id is not None:
                      st.image(episode_row["Image_ep"], width=300)
                      st.text(f"Title: {episode_row['Title']}")
                      st.write(f"Description: {episode_row['Description']}", height=100)
-  else: 
-    st.write(f'watchlist', watchlist)
+
     
 
 elif user_id is not None:
