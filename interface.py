@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import os
 import pandas as pd
 import numpy as np
@@ -13,6 +14,25 @@ npo_df = pd.read_csv('npo_user.csv')
 
 npo_df['user_id'] = npo_df['user_id'].astype(int)
 
+
+
+def remove_duplicates_from_dict(dict):
+        seen_values = set()
+    # List to store keys of duplicate values
+        keys_to_remove = []
+        for key, value in dict.items():
+            # Check if the value is already encountered
+            value = tuple(value) if isinstance(value, list) else value
+            if value in seen_values:
+                # If duplicate, mark the key for removal
+                keys_to_remove.append(key)
+            else:
+                 # Add the value to the set of seen values
+                 seen_values.add(value)
+    
+             # Remove keys with duplicate values from the dictionary
+        for key in keys_to_remove:
+            del dict[key]
 # Streamlit layout
 st.title("RECOMMENDER SYSTEM FOR NPO")
 
@@ -35,22 +55,7 @@ num_movies_to_display = min(len(npo_df), 10)
 # Set to keep track of unique series names
 unique_series = npo_df[npo_df['user_id'] == user_id]['Serie']
 
-def remove_duplicates_from_dict(dict):
-        seen_values = set()
-    # List to store keys of duplicate values
-        keys_to_remove = []
-        for key, value in dict.items():
-            # Check if the value is already encountered
-            if value in seen_values:
-                # If duplicate, mark the key for removal
-                keys_to_remove.append(key)
-            else:
-                 # Add the value to the set of seen values
-                 seen_values.add(value)
-    
-             # Remove keys with duplicate values from the dictionary
-        for key in keys_to_remove:
-            del dict[key]
+
 #### personas ####
 personas = {'Ambitieuze Jongeren': {
   'Gezondheid/opvoeding': 0.01587301587301588,
@@ -692,7 +697,7 @@ if user_id is not None:
                 button =st.button(':heavy_plus_sign:', key = f"{index}")
                 if button:
                     for index, row in series_data.iterrows():
-                        key = f'key_{index}'  # Generating keys dynamically
+                        key = f'key_{index}{user_id}'  # Generating keys dynamically
                         st.session_state[key] = row["Serie"]
             with st.expander("Episodes"):
                 unique_episodes = sorted(npo_df[npo_df["Serie"] == series]["Episode"].unique(), reverse=True)
@@ -726,7 +731,7 @@ if user_id is not None:
                 button =st.button(':heavy_plus_sign:', key = f"{index}")
                 if button:
                     for index, row in series_data.iterrows():
-                        key = f'key_{index}'  # Generating keys dynamically
+                        key = f'key_{index}{user_id}'  # Generating keys dynamically
                         st.session_state[key] = row["Serie"]            
             with st.expander("Episodes"):
                 unique_episodes = sorted(npo_df[npo_df["Serie"] == series]["Episode"].unique(), reverse=True)
@@ -741,60 +746,83 @@ if user_id is not None:
     [':+1:', ':-1:'], index = None, key ='feedback') 
     st.session_state.feedback 
 
-  elif selected_option == "Watchlist": 
-        st.subheader('Your watchlist')
-        remove_duplicates_from_dict(st.session_state)  
-        for key in st.session_state:
-        # Check if the value associated with the key is a number
-            value = st.session_state[key]
-            if value in st.session_state.values(): 
-                if isinstance(value, str) and value != "false":
-            # Perform actions for keys with numeric values
-                    series_data = npo_df[npo_df["Serie"] == value].head(1)
-                    cols = st.columns(2)
-                    for index, row in series_data.iterrows():
-                        with cols[0]:
-                            st.header(row["Serie"])
-                            st.image(row["Image_serie"], width=300)
-                        with cols[1]:
-                            st.header(row["Broadcaster"])
-                            st.write(f"Genre: {row['Genre_1']} | {row['Genre_2']}")
-                        with st.expander("Episodes"):
-                            unique_episodes = sorted(npo_df[npo_df["Serie"] == value]["Episode"].unique(), reverse=True)
-                            # Iterate over unique episodes in descending order
-                            for episode_number in unique_episodes:
-                                episode_row = npo_df[(npo_df["Serie"] == value) & (npo_df["Episode"] == episode_number)].iloc[0]
-                                st.subheader(f"Episode {episode_row['Episode']}")
-                                st.image(episode_row["Image_ep"], width=300)
-                                st.text(f"Title: {episode_row['Title']}")
-                                st.write(f"Description: {episode_row['Description']}", height=100)
+  elif selected_option == "Search":
+    show_input = st.text_input("Enter name of the show", key= "show_input")
+    show_name = st.session_state['show_input']   
+    if show_input:
+                show_name = st.session_state['show_input']
+                series_data = npo_df[npo_df["Serie"] == show_name].head(1)
+                cols = st.columns(2)
+                for index, row in series_data.iterrows():
+                    with cols[0]:
+                        st.header(row["Serie"])
+                        st.image(row["Image_serie"], width=300)
+                    with cols[1]:
+                        st.header(row["Broadcaster"])
+                        st.write(f"Genre: {row['Genre_1']} | {row['Genre_2']}")
+                        button =st.button(':heavy_plus_sign:', key = f"add_button_{index}")
+                        if button:
+                            for index, row in series_data.iterrows():
+                                key = f'watchlist_{index}{user_id}'  # Generating keys dynamically
+                                st.session_state[key] = row["Serie"]
+                    with st.expander("Episodes"):
+                        unique_episodes = sorted(npo_df[npo_df["Serie"] == show_name]["Episode"].unique(), reverse=True)
+                        # Iterate over unique episodes in descending order
+                        for episode_number in unique_episodes:
+                            episode_row = npo_df[(npo_df["Serie"] == show_name) & (npo_df["Episode"] == episode_number)].iloc[0]
+                            st.subheader(f"Episode {episode_row['Episode']}")
+                            st.image(episode_row["Image_ep"], width=300)
+                            st.text(f"Title: {episode_row['Title']}")
+                            st.write(f"Description: {episode_row['Description']}", height=100)
   else:
-        show_input = st.text_input("Enter name of the show", key= "show_input")   
-        if show_input:
-            show_name = st.session_state['show_input']
+    st.subheader('Your watchlist')
+    user_string = str(user_id)
+    # Retrieve or create the user-specific watchlist based on user_id
+    for key, value in st.session_state.items():
+       if key.startswith('watchlist_'):# Check for keys starting with 'watchlist_'
+         if user_string in key:   
+          if st.session_state[key]:   
+            show_name = st.session_state[key]  # Retrieve the movie name from the session state using the button key
             series_data = npo_df[npo_df["Serie"] == show_name].head(1)
             cols = st.columns(2)
             for index, row in series_data.iterrows():
+             with cols[0]:
+                st.header(row["Serie"])
+                st.image(row["Image_serie"], width=300)
+             with cols[1]:
+                st.header(row["Broadcaster"])
+                st.write(f"Genre: {row['Genre_1']} | {row['Genre_2']}")
+             with st.expander("Episodes"):
+                unique_episodes = sorted(npo_df[npo_df["Serie"] == show_name]["Episode"].unique(), reverse=True)
+                for episode_number in unique_episodes:
+                    episode_row = npo_df[(npo_df["Serie"] == show_name) & (npo_df["Episode"] == episode_number)].iloc[0]
+                    st.subheader(f"Episode {episode_row['Episode']}")
+                    st.image(episode_row["Image_ep"], width=300)
+                    st.text(f"Title: {episode_row['Title']}")
+                    st.write(f"Description: {episode_row['Description']}", height=100)
+
+       elif key.startswith('key_'):# Check for keys starting with 'add_button_'
+         if user_string in key:
+          if st.session_state[key]:    
+            movie_name = st.session_state[key]  # Retrieve the movie name from the session state using the button key
+            series_data = npo_df[npo_df["Serie"] == movie_name].head(1)
+            cols = st.columns(2)
+            for _, row in series_data.iterrows():
                 with cols[0]:
                     st.header(row["Serie"])
                     st.image(row["Image_serie"], width=300)
                 with cols[1]:
                     st.header(row["Broadcaster"])
                     st.write(f"Genre: {row['Genre_1']} | {row['Genre_2']}")
-                    button =st.button(':heavy_plus_sign:', key = f"{index}")
-                    if button:
-                        for index, row in series_data.iterrows():
-                            key = f'key_{index}'  # Generating keys dynamically
-                            st.session_state['key'] = row["Serie"]
                 with st.expander("Episodes"):
-                    unique_episodes = sorted(npo_df[npo_df["Serie"] == show_name]["Episode"].unique(), reverse=True)
-                    # Iterate over unique episodes in descending order
+                    unique_episodes = sorted(npo_df[npo_df["Serie"] == movie_name]["Episode"].unique(), reverse=True)
                     for episode_number in unique_episodes:
-                        episode_row = npo_df[(npo_df["Serie"] == show_name) & (npo_df["Episode"] == episode_number)].iloc[0]
+                        episode_row = npo_df[(npo_df["Serie"] == movie_name) & (npo_df["Episode"] == episode_number)].iloc[0]
                         st.subheader(f"Episode {episode_row['Episode']}")
                         st.image(episode_row["Image_ep"], width=300)
                         st.text(f"Title: {episode_row['Title']}")
                         st.write(f"Description: {episode_row['Description']}", height=100)
+    
     
 
                
